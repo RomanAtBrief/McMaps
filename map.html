@@ -13,9 +13,29 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.min.js"></script>
     <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.css" type="text/css">
     
+    <!-- Include the CesiumJS JavaScript and CSS files -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.135/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.135/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
     <style>
         body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* MapBox container */
+        #map { 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            width: 100%; 
+        }
+        
+        /* Cesium container */
+        #cesiumContainer {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            display: none; /* Hidden by default */
+        }
         
         /* Geocoder positioning - top center */
         .mapboxgl-ctrl-geocoder {
@@ -34,7 +54,7 @@
             width: 200px;
             top: 10px;
             left: 10px;
-            z-index: 1;
+            z-index: 1000;
         }
         
         .map-overlay .map-overlay-inner {
@@ -63,9 +83,13 @@
     </style>
 </head>
 <body>
+    <!-- MapBox container -->
     <div id='map'></div>
     
-    <!-- Light preset selector overlay - top left -->
+    <!-- Cesium container -->
+    <div id='cesiumContainer'></div>
+    
+    <!-- Style selector overlay - top left -->
     <div class="map-overlay">
         <div class="map-overlay-inner">
             <fieldset class="select-fieldset">
@@ -76,6 +100,7 @@
                     <option value="dusk">Dusk</option>
                     <option value="night">Night</option>
                     <option value="satellite">Satellite</option>
+                    <option value="realistic">Realistic 3D</option>
                 </select>
             </fieldset>
         </div>
@@ -85,7 +110,10 @@
         // Set your Mapbox access token
         mapboxgl.accessToken = 'pk.eyJ1IjoiYXJ0cGVuIiwiYSI6ImNtaWs3enNtcDAycGIzZnM3bWM4MDYxZjgifQ.MEQa0H8VFqdjKywPbUSqcg';
         
-        // Initialize the map
+        // Set your Cesium ion access token
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1NzY1NjEyMy02ZDQ1LTRjMDQtOWZjNC04MDBjY2Q5ZjQ1NDQiLCJpZCI6MzY1MDQwLCJpYXQiOjE3NjQ0MjE3ODV9.qm9PTk2gyKewNkbWkzYsk_Sdf-gVYLJ0T0aX25jcH5M';
+        
+        // Initialize the MapBox map
         const map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/standard',
@@ -102,22 +130,68 @@
             mapboxgl: mapboxgl
         });
         
-        // Add geocoder to the map container (not using addControl so we can position with CSS)
+        // Add geocoder to the map container
         document.getElementById('map').appendChild(geocoder.onAdd(map));
         
+        // Cesium viewer - lazy loaded
+        let viewer = null;
+        
+        // Initialize Cesium when first needed
+        async function initCesium() {
+            if (viewer) return; // Already initialized
+            
+            // Create Cesium viewer - EXACT OFFICIAL EXAMPLE
+            viewer = new Cesium.Viewer("cesiumContainer", {
+                timeline: false,
+                animation: false,
+                sceneModePicker: false,
+                baseLayerPicker: false,
+                geocoder: Cesium.IonGeocodeProviderType.GOOGLE,
+                // The globe does not need to be displayed,
+                // since the Photorealistic 3D Tiles include terrain
+                globe: false,
+            });
+            
+            // Enable rendering the sky
+            viewer.scene.skyAtmosphere.show = true;
+            
+            // Add Photorealistic 3D Tiles
+            try {
+                const tileset = await Cesium.createGooglePhotorealistic3DTileset({
+                    // Only the Google Geocoder can be used with Google Photorealistic 3D Tiles
+                    onlyUsingWithGoogleGeocoder: true,
+                });
+                viewer.scene.primitives.add(tileset);
+            } catch (error) {
+                console.log(`Error loading Photorealistic 3D Tiles tileset.
+                ${error}`);
+            }
+        }
+        
         // Handle style selector changes
-        document.getElementById('styleSelector').addEventListener('change', function() {
+        document.getElementById('styleSelector').addEventListener('change', async function() {
             const selectedStyle = this.value;
             
-            if (selectedStyle === 'satellite') {
-                // Switch to satellite style
-                map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
+            if (selectedStyle === 'realistic') {
+                // Switch to Cesium 3D view
+                document.getElementById('map').style.display = 'none';
+                document.getElementById('cesiumContainer').style.display = 'block';
+                await initCesium();
+                
             } else {
-                // Switch to standard style with selected light preset
-                map.setStyle('mapbox://styles/mapbox/standard');
-                map.once('style.load', () => {
-                    map.setConfigProperty('basemap', 'lightPreset', selectedStyle);
-                });
+                // Switch to MapBox view
+                document.getElementById('map').style.display = 'block';
+                document.getElementById('cesiumContainer').style.display = 'none';
+                
+                // Handle MapBox styles
+                if (selectedStyle === 'satellite') {
+                    map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
+                } else {
+                    map.setStyle('mapbox://styles/mapbox/standard');
+                    map.once('style.load', () => {
+                        map.setConfigProperty('basemap', 'lightPreset', selectedStyle);
+                    });
+                }
             }
         });
     </script>
