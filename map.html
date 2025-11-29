@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>MapBox Viewer</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id='map'></div>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiYXJ0cGVuIiwiYSI6ImNtaWs3enNtcDAycGIzZnM3bWM4MDYxZjgifQ.MEQa0H8VFqdjKywPbUSqcg';
+        
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/standard',
+            center: [-3.188, 55.953], // Edinburgh
+            zoom: 12
+        });
+
+        // Add zoom and rotation controls
+        map.addControl(new mapboxgl.NavigationControl());
+    </script>
+</body>
+</html>
