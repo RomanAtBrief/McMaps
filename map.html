@@ -3,19 +3,89 @@
 <head>
     <meta charset='utf-8'>
     <title>MapBox Viewer</title>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <script src='https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js'></script>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css' rel='stylesheet' />
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no'>
+    
+    <!-- Mapbox GL JS v3.15.0 -->
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js'></script>
+    
+    <!-- Mapbox Geocoder Plugin v5.1.0 -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.css" type="text/css">
+    
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* Geocoder positioning - top center */
+        .mapboxgl-ctrl-geocoder {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            z-index: 1;
+        }
+        
+        /* Style controls overlay - top left */
+        .map-overlay {
+            font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+            position: absolute;
+            width: 200px;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+        }
+        
+        .map-overlay .map-overlay-inner {
+            background-color: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+            padding: 10px;
+        }
+        
+        .map-overlay-inner .select-fieldset {
+            display: block;
+            border: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .map-overlay-inner .select-fieldset label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .map-overlay-inner .select-fieldset select {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
     <div id='map'></div>
+    
+    <!-- Light preset selector overlay - top left -->
+    <div class="map-overlay">
+        <div class="map-overlay-inner">
+            <fieldset class="select-fieldset">
+                <label>Select style</label>
+                <select id="styleSelector" name="styleSelector">
+                    <option value="dawn">Dawn</option>
+                    <option value="day" selected>Day</option>
+                    <option value="dusk">Dusk</option>
+                    <option value="night">Night</option>
+                    <option value="satellite">Satellite</option>
+                </select>
+            </fieldset>
+        </div>
+    </div>
+    
     <script>
+        // Set your Mapbox access token
         mapboxgl.accessToken = 'pk.eyJ1IjoiYXJ0cGVuIiwiYSI6ImNtaWs3enNtcDAycGIzZnM3bWM4MDYxZjgifQ.MEQa0H8VFqdjKywPbUSqcg';
         
+        // Initialize the map
         const map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/standard',
@@ -23,8 +93,33 @@
             zoom: 12
         });
 
-        // Add zoom and rotation controls
-        map.addControl(new mapboxgl.NavigationControl());
+        // Add navigation controls (zoom and rotation) - top right
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        
+        // Add geocoder search control - will be positioned by CSS to top center
+        const geocoder = new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            mapboxgl: mapboxgl
+        });
+        
+        // Add geocoder to the map container (not using addControl so we can position with CSS)
+        document.getElementById('map').appendChild(geocoder.onAdd(map));
+        
+        // Handle style selector changes
+        document.getElementById('styleSelector').addEventListener('change', function() {
+            const selectedStyle = this.value;
+            
+            if (selectedStyle === 'satellite') {
+                // Switch to satellite style
+                map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
+            } else {
+                // Switch to standard style with selected light preset
+                map.setStyle('mapbox://styles/mapbox/standard');
+                map.once('style.load', () => {
+                    map.setConfigProperty('basemap', 'lightPreset', selectedStyle);
+                });
+            }
+        });
     </script>
 </body>
 </html>
